@@ -1,6 +1,8 @@
 import { Room, Client } from "@colyseus/core";
-import { schema, SchemaType } from "@colyseus/schema";
+import { Encoder, schema, SchemaType } from "@colyseus/schema";
 import RAPIER from "@dimforge/rapier2d-compat";
+
+Encoder.BUFFER_SIZE = 32 * 1024; // 32KB
 
 // Constants
 const MAP_SIZE = 2000;
