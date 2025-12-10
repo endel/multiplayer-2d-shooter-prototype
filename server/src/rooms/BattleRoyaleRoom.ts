@@ -9,7 +9,7 @@ const PLAYER_SPEED = 200;
 const BULLET_RADIUS = 5;
 const BULLET_SPEED = 800;
 const BULLET_DAMAGE = 20;
-const STARTING_HEALTH = 100;
+const STARTING_HEALTH = 500;
 const TICK_RATE = 60;
 const BULLET_MAX_DISTANCE = 1000;
 
@@ -59,7 +59,7 @@ interface BodyUserData {
 }
 
 export class BattleRoyaleRoom extends Room {
-  maxClients = 16;
+  maxClients = 100;
   state = new GameState();
 
   private world!: RAPIER.World;
