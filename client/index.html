@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Colyseus WebRTC</title>
+  </head>
+  <body>
+    <div id="app">
+      <header>
+        <h1>Colyseus WebRTC</h1>
+        <div id="status">Click "Join Room" to start</div>
+      </header>
+
+      <div class="controls">
+        <button id="join-btn">Join Room</button>
+        <button id="leave-btn">Leave Room</button>
+        <button id="toggle-media-btn" disabled>📹 Share Video/Audio</button>
+      </div>
+
+      <div class="video-grid">
+        <div class="video-section">
+          <h3>Local Video</h3>
+          <div class="video-container local">
+            <video id="local-video" autoplay muted playsinline></video>
+            <div class="video-label">You</div>
+          </div>
+        </div>
+
+        <div class="video-section">
+          <h3>Remote Peers</h3>
+          <div id="remote-videos" class="remote-videos-grid"></div>
+        </div>
+      </div>
+
+      <div class="chat-section">
+        <h3>Data Channel Chat</h3>
+        <div id="chat-messages" class="chat-messages"></div>
+        <div class="chat-input">
+          <input type="text" id="message-input" placeholder="Type a message..." />
+          <button id="send-btn">Send</button>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
