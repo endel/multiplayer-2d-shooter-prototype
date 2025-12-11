@@ -2,14 +2,14 @@ import { Room, Client } from "@colyseus/core";
 import { Encoder, schema, SchemaType } from "@colyseus/schema";
 import RAPIER from "@dimforge/rapier2d-compat";
 
-Encoder.BUFFER_SIZE = 32 * 1024; // 32KB
+Encoder.BUFFER_SIZE = 64 * 1024; // 64KB
 
 // Constants
 const MAP_SIZE = 2000;
 const PLAYER_RADIUS = 25;
 const PLAYER_SPEED = 200;
 const BULLET_RADIUS = 5;
-const BULLET_SPEED = 800;
+const BULLET_SPEED = 1200;
 const BULLET_DAMAGE = 20;
 const STARTING_HEALTH = 500;
 const TICK_RATE = 60;
@@ -75,7 +75,7 @@ export class BattleRoyaleRoom extends Room {
   async onCreate(options: any) {
     // Initialize Rapier WASM
     await RAPIER.init();
-    
+
     // Initialize Rapier physics world (no gravity for top-down)
     const gravity = { x: 0, y: 0 };
     this.world = new RAPIER.World(gravity);
@@ -125,16 +125,16 @@ export class BattleRoyaleRoom extends Room {
     const bodyDesc = RAPIER.RigidBodyDesc.dynamic()
       .setTranslation(x, y)
       .setLinearDamping(10); // High damping for responsive stop
-    
+
     const body = this.world.createRigidBody(bodyDesc);
-    
+
     const colliderDesc = RAPIER.ColliderDesc.ball(PLAYER_RADIUS)
       .setDensity(1)
       .setFriction(0)
       .setRestitution(0);
-    
+
     this.world.createCollider(colliderDesc, body);
-    
+
     return body;
   }
 
@@ -143,15 +143,15 @@ export class BattleRoyaleRoom extends Room {
       .setTranslation(x, y)
       .setLinvel(Math.cos(angle) * BULLET_SPEED, Math.sin(angle) * BULLET_SPEED)
       .setCcdEnabled(true); // Continuous collision detection for fast bullets
-    
+
     const body = this.world.createRigidBody(bodyDesc);
-    
+
     const colliderDesc = RAPIER.ColliderDesc.ball(BULLET_RADIUS)
       .setDensity(0.1)
       .setSensor(true); // Bullets are sensors - they detect but don't push
-    
+
     this.world.createCollider(colliderDesc, body);
-    
+
     return body;
   }
 
@@ -171,7 +171,7 @@ export class BattleRoyaleRoom extends Room {
     const bulletY = player.y + Math.sin(angle) * spawnOffset;
 
     const bulletId = `bullet_${this.bulletIdCounter++}`;
-    
+
     // Create physics body
     const body = this.createBulletBody(bulletX, bulletY, angle);
     this.bulletBodies.set(bulletId, body);
@@ -195,7 +195,7 @@ export class BattleRoyaleRoom extends Room {
     for (const [sessionId, inputs] of this.pendingInputs) {
       const player = this.state.players.get(sessionId);
       const body = this.playerBodies.get(sessionId);
-      
+
       if (!player || !body || player.health <= 0) continue;
 
       // Process each input
@@ -203,7 +203,7 @@ export class BattleRoyaleRoom extends Room {
         // Calculate movement direction
         let dx = 0;
         let dy = 0;
-        
+
         if (input.keys.w) dy -= 1;
         if (input.keys.s) dy += 1;
         if (input.keys.a) dx -= 1;
@@ -218,7 +218,7 @@ export class BattleRoyaleRoom extends Room {
 
         // Apply velocity directly (with damping, it will stop when keys released)
         body.setLinvel({ x: dx, y: dy }, true);
-        
+
         // Update angle
         player.angle = input.angle;
         player.lastProcessedSeq = input.seq;
@@ -236,7 +236,7 @@ export class BattleRoyaleRoom extends Room {
 
       const pos = body.translation();
       const vel = body.linvel();
-      
+
       player.x = pos.x;
       player.y = pos.y;
       player.velocityX = vel.x;
@@ -245,14 +245,14 @@ export class BattleRoyaleRoom extends Room {
 
     // Sync bullet positions and check collisions
     const bulletsToRemove: string[] = [];
-    
+
     for (const [bulletId, body] of this.bulletBodies) {
       const bullet = this.state.bullets.get(bulletId);
       if (!bullet) continue;
 
       const pos = body.translation();
-      bullet.x = pos.x;
-      bullet.y = pos.y;
+      // Bullet position is predicted client-side based on spawn position, angle, and speed
+      // bullet.x and bullet.y remain as spawn positions
 
       // Check if bullet traveled too far
       const startPos = this.bulletStartPositions.get(bulletId);
@@ -281,19 +281,19 @@ export class BattleRoyaleRoom extends Room {
           const player = this.state.players.get(sessionId);
           if (player && player.health > 0) {
             player.health = Math.max(0, player.health - BULLET_DAMAGE);
-            
-            // Notify about hit
-            this.broadcast("hit", { 
-              targetId: sessionId, 
-              shooterId: bullet.ownerId,
-              damage: BULLET_DAMAGE,
-              health: player.health
-            });
+
+            // // Notify about hit
+            // this.broadcast("hit", {
+            //   targetId: sessionId,
+            //   shooterId: bullet.ownerId,
+            //   damage: BULLET_DAMAGE,
+            //   health: player.health
+            // });
 
             if (player.health <= 0) {
-              this.broadcast("kill", { 
-                targetId: sessionId, 
-                killerId: bullet.ownerId 
+              this.broadcast("kill", {
+                targetId: sessionId,
+                killerId: bullet.ownerId
               });
             }
           }
@@ -315,13 +315,17 @@ export class BattleRoyaleRoom extends Room {
   }
 
   private removeBullet(bulletId: string) {
+    // disable collision detection immediately
     const body = this.bulletBodies.get(bulletId);
     if (body) {
       this.world.removeRigidBody(body);
       this.bulletBodies.delete(bulletId);
     }
     this.bulletStartPositions.delete(bulletId);
-    this.state.bullets.delete(bulletId);
+
+    // remove bullet after 200ms (so frame can render the hit)
+    this.clock.setTimeout(() =>
+      this.removeBullet(bulletId), 200);
   }
 
   onJoin(client: Client, options: any) {

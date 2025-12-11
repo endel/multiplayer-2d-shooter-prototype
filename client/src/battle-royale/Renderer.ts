@@ -1,5 +1,5 @@
 import { Application, Container, Graphics, Text, TextStyle } from "pixi.js";
-import { COLORS, MAP_SIZE, PLAYER_RADIUS, BULLET_RADIUS } from "./types";
+import { COLORS, MAP_SIZE, PLAYER_RADIUS, BULLET_RADIUS, MAX_HEALTH } from "./types";
 
 export interface PlayerRenderData {
   x: number;
@@ -31,6 +31,7 @@ export class Renderer {
   // UI elements
   private healthText: Text | null = null;
   private killFeedTexts: Text[] = [];
+  private hitOverlay: Graphics | null = null;
 
   constructor() {
     this.app = new Application();
@@ -112,10 +113,18 @@ export class Renderer {
     this.healthText.x = 20;
     this.healthText.y = 20;
     this.uiContainer.addChild(this.healthText);
+
+    // Red flash overlay for hit feedback (added last to sit on top)
+    this.hitOverlay = new Graphics();
+    this.redrawHitOverlay();
+    this.hitOverlay.alpha = 0;
+    this.hitOverlay.eventMode = "none";
+    this.uiContainer.addChild(this.hitOverlay);
   }
 
   private handleResize() {
     this.app.renderer.resize(window.innerWidth, window.innerHeight);
+    this.redrawHitOverlay();
   }
 
   setLocalPlayer(_playerId: string) {
@@ -189,7 +198,7 @@ export class Renderer {
       graphics.fill(COLORS.HEALTH_BAR_BG);
 
       // Health fill
-      const healthPercent = data.health / 100;
+      const healthPercent = Math.min(1, data.health / MAX_HEALTH);
       const healthColor = healthPercent > 0.3 ? COLORS.HEALTH_BAR : COLORS.HEALTH_BAR_LOW;
       graphics.rect(-healthBarWidth / 2, healthBarY, healthBarWidth * healthPercent, healthBarHeight);
       graphics.fill(healthColor);
@@ -230,6 +239,36 @@ export class Renderer {
     if (this.healthText) {
       this.healthText.text = `Health: ${Math.ceil(health)}`;
     }
+  }
+
+  /**
+   * Brief red flash when the local player is hit
+   */
+  flashHit(intensity: number = 0.5, durationMs: number = 150) {
+    if (!this.hitOverlay) return;
+
+    const startAlpha = intensity;
+    this.hitOverlay.alpha = startAlpha;
+    const start = performance.now();
+
+    const fade = (now: number) => {
+      const t = Math.min(1, (now - start) / durationMs);
+      this.hitOverlay!.alpha = startAlpha * (1 - t);
+      if (t < 1) {
+        requestAnimationFrame(fade);
+      } else {
+        this.hitOverlay!.alpha = 0;
+      }
+    };
+
+    requestAnimationFrame(fade);
+  }
+
+  private redrawHitOverlay() {
+    if (!this.hitOverlay) return;
+    this.hitOverlay.clear();
+    this.hitOverlay.rect(0, 0, this.app.screen.width, this.app.screen.height);
+    this.hitOverlay.fill(0xff0000);
   }
 
   showKillFeed(message: string) {

@@ -114,9 +114,10 @@ export class InputHandler {
    * Calculate aim angle from player to mouse cursor in world space
    */
   getAimAngle(): number {
-    // Convert mouse position to world coordinates
-    const screenCenterX = this.canvas.width / 2;
-    const screenCenterY = this.canvas.height / 2;
+    // Use CSS dimensions (clientWidth/clientHeight) instead of internal canvas resolution
+    // This matches the coordinate system used by getBoundingClientRect() in handleMouseMove
+    const screenCenterX = this.canvas.clientWidth / 2;
+    const screenCenterY = this.canvas.clientHeight / 2;
     
     // Mouse offset from screen center
     const mouseOffsetX = this.mouseX - screenCenterX;

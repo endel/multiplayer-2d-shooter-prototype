@@ -8,6 +8,9 @@ export default defineConfig({
     wasm(),
     topLevelAwait()
   ],
+  server: {
+    allowedHosts: ['width-lol-sit-ending.trycloudflare.com'],
+  },
   build: {
     rollupOptions: {
       input: {

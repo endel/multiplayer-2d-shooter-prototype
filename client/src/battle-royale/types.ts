@@ -5,6 +5,7 @@ export const PLAYER_SPEED = 200;
 export const BULLET_RADIUS = 5;
 export const BULLET_SPEED = 800;
 export const TICK_RATE = 60;
+export const MAX_HEALTH = 500;
 
 // Colors
 export const COLORS = {

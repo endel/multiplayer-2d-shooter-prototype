@@ -1,5 +1,5 @@
 import RAPIER from "@dimforge/rapier2d";
-import { PLAYER_RADIUS, PLAYER_SPEED, MAP_SIZE } from "./types";
+import { PLAYER_RADIUS, PLAYER_SPEED, MAP_SIZE, TICK_RATE } from "./types";
 import type { InputState } from "./types";
 
 export interface PredictedState {
@@ -8,6 +8,9 @@ export interface PredictedState {
   velocityX: number;
   velocityY: number;
 }
+
+// Fixed timestep for physics simulation (in seconds)
+const FIXED_TIMESTEP = 1 / TICK_RATE;
 
 export class ClientPrediction {
   private world: RAPIER.World;
@@ -22,6 +25,9 @@ export class ClientPrediction {
     // Create physics world (no gravity for top-down)
     const gravity = { x: 0, y: 0 };
     this.world = new RAPIER.World(gravity);
+    
+    // Set fixed timestep for consistent movement regardless of FPS
+    this.world.timestep = FIXED_TIMESTEP;
     
     // Create map boundaries
     this.createMapBoundaries();

@@ -23,6 +23,7 @@ export default config({
         gameServer.define('prediction_room', PredictionRoom);
         gameServer.define('battle_royale', BattleRoyaleRoom);
 
+        // gameServer.simulateLatency(200);
     },
 
     initializeExpress: (app) => {

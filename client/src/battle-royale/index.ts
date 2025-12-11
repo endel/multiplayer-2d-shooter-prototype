@@ -3,27 +3,35 @@ import { Renderer } from "./Renderer";
 import type { PlayerRenderData, BulletRenderData } from "./Renderer";
 import { ClientPrediction, EntityInterpolator } from "./ClientPrediction";
 import { InputHandler } from "./InputHandler";
-import { TICK_RATE } from "./types";
-import type { InputState, HitMessage, KillMessage } from "./types";
+import { TICK_RATE, PLAYER_RADIUS, BULLET_RADIUS } from "./types";
+import type { InputState, KillMessage } from "./types";
+import { playGunshot, playHit } from "./audio";
+import type { GameState } from "../../../server/src/rooms/BattleRoyaleRoom";
 
 class BattleRoyaleGame {
   private client: Client;
-  private room: Room | null = null;
+  private room: Room<GameState> | null = null;
   private renderer: Renderer;
   private prediction: ClientPrediction;
   private inputHandler: InputHandler | null = null;
-  
+
   // State tracking
   private localPlayerId: string | null = null;
   private localPlayerAngle = 0;
   private otherPlayerInterpolators: Map<string, EntityInterpolator> = new Map();
-  
+
   // Predicted local position (for rendering)
   private predictedX = 0;
   private predictedY = 0;
 
+  // Bullet spawn times for client-side position prediction
+  private bulletSpawnTimes: Map<string, number> = new Map();
+  // Track bullets that already triggered a local hit reaction
+  private acknowledgedBulletHits: Set<string> = new Set();
+
   constructor() {
     this.client = new Client("ws://localhost:2567");
+    // this.client = new Client("https://br-sao-bd4b19d7.colyseus.cloud");
     this.renderer = new Renderer();
     this.prediction = new ClientPrediction();
   }
@@ -41,7 +49,7 @@ class BattleRoyaleGame {
       this.room = await this.client.joinOrCreate("battle_royale");
       this.localPlayerId = this.room.sessionId;
       this.renderer.setLocalPlayer(this.localPlayerId);
-      
+
       console.log("Joined room:", this.room.roomId, "as", this.localPlayerId);
 
       // Setup state callbacks
@@ -72,7 +80,7 @@ class BattleRoyaleGame {
     // Player added
     $(this.room.state).players.onAdd((_player: any, sessionId: string) => {
       console.log("Player joined:", sessionId);
-      
+
       if (sessionId === this.localPlayerId) {
         // Initialize local player prediction
         const playerState = this.room!.state.players.get(sessionId) as any;
@@ -94,21 +102,12 @@ class BattleRoyaleGame {
       this.otherPlayerInterpolators.delete(sessionId);
     });
 
-    // Listen for hit events
-    this.room.onMessage("hit", (message: HitMessage) => {
-      console.log("Hit:", message);
-      if (message.targetId === this.localPlayerId) {
-        // We got hit - update UI
-        this.renderer.updateUI(message.health);
-      }
-    });
-
     // Listen for kill events
     this.room.onMessage("kill", (message: KillMessage) => {
       console.log("Kill:", message);
       const killerName = message.killerId.substring(0, 6);
       const targetName = message.targetId.substring(0, 6);
-      
+
       if (message.targetId === this.localPlayerId) {
         this.renderer.showKillFeed(`You were killed by ${killerName}`);
       } else if (message.killerId === this.localPlayerId) {
@@ -140,7 +139,9 @@ class BattleRoyaleGame {
 
   private handleShoot(angle: number) {
     if (!this.room) return;
+
     this.room.send("shoot", { angle });
+    playGunshot(1, 'pistol');
   }
 
   private gameLoop = () => {
@@ -175,13 +176,13 @@ class BattleRoyaleGame {
 
     // Build render data for players
     const playerRenderData = new Map<string, PlayerRenderData>();
-    
+
     for (const [sessionId, player] of this.room.state.players) {
       const p = player as any;
       const isLocal = sessionId === this.localPlayerId;
-      
+
       let x: number, y: number, angle: number;
-      
+
       if (isLocal) {
         // Use predicted position for local player
         x = this.predictedX;
@@ -212,14 +213,88 @@ class BattleRoyaleGame {
       });
     }
 
-    // Build render data for bullets
+    // Build render data for bullets with client-side position prediction
     const bulletRenderData = new Map<string, BulletRenderData>();
+    const currentBulletIds = new Set<string>();
+
+    const localPlayerState = this.localPlayerId
+      ? (this.room.state.players.get(this.localPlayerId) as any)
+      : null;
+
     for (const [bulletId, bullet] of this.room.state.bullets) {
-      const b = bullet as any;
+      currentBulletIds.add(bulletId);
+
+      // Track spawn time when bullet first appears
+      if (!this.bulletSpawnTimes.has(bulletId)) {
+        this.bulletSpawnTimes.set(bulletId, performance.now());
+      }
+
+      // Calculate predicted position based on spawn position + trajectory
+      const spawnTime = this.bulletSpawnTimes.get(bulletId)!;
+      const elapsedSeconds = (performance.now() - spawnTime) / 1000;
+      const predictedX = bullet.x + Math.cos(bullet.angle) * bullet.speed * elapsedSeconds;
+      const predictedY = bullet.y + Math.sin(bullet.angle) * bullet.speed * elapsedSeconds;
+
+      // Client-side hit detection
+      if (this.localPlayerId && !this.acknowledgedBulletHits.has(bulletId)) {
+        const hitRadius = PLAYER_RADIUS + BULLET_RADIUS;
+
+        if (bullet.ownerId !== this.localPlayerId) {
+          // Enemy bullet hitting local player
+          if (localPlayerState && localPlayerState.health > 0) {
+            const dx = predictedX - this.predictedX;
+            const dy = predictedY - this.predictedY;
+            const distance = Math.hypot(dx, dy);
+
+            if (distance < hitRadius) {
+              this.acknowledgedBulletHits.add(bulletId);
+              playHit(1);
+              this.renderer.flashHit();
+            }
+          }
+        } else {
+          // Local player's bullet hitting other players
+          for (const [sessionId, player] of this.room.state.players) {
+            if (sessionId === this.localPlayerId) continue;
+            const p = player as any;
+            if (p.health <= 0) continue;
+
+            // Get interpolated position for other players
+            const interpolator = this.otherPlayerInterpolators.get(sessionId);
+            const interpolated = interpolator?.getInterpolatedState();
+            const targetX = interpolated?.x ?? p.x;
+            const targetY = interpolated?.y ?? p.y;
+
+            const dx = predictedX - targetX;
+            const dy = predictedY - targetY;
+            const distance = Math.hypot(dx, dy);
+
+            if (distance < hitRadius) {
+              this.acknowledgedBulletHits.add(bulletId);
+              playHit(1);
+              break;
+            }
+          }
+        }
+      }
+
+      // Don't render bullets that have hit the local player
+      if (this.acknowledgedBulletHits.has(bulletId)) {
+        continue;
+      }
+
       bulletRenderData.set(bulletId, {
-        x: b.x,
-        y: b.y,
+        x: predictedX,
+        y: predictedY,
       });
+    }
+
+    // Clean up spawn times for bullets that no longer exist
+    for (const bulletId of this.bulletSpawnTimes.keys()) {
+      if (!currentBulletIds.has(bulletId)) {
+        this.bulletSpawnTimes.delete(bulletId);
+        this.acknowledgedBulletHits.delete(bulletId);
+      }
     }
 
     // Update camera to follow local player
@@ -227,9 +302,8 @@ class BattleRoyaleGame {
     this.renderer.updateCamera(this.predictedX, this.predictedY);
 
     // Update health UI
-    const localPlayer = this.room.state.players.get(this.localPlayerId!);
-    if (localPlayer) {
-      this.renderer.updateUI((localPlayer as any).health);
+    if (localPlayerState) {
+      this.renderer.updateUI((localPlayerState as any).health);
     }
 
     // Render
@@ -250,7 +324,7 @@ class BattleRoyaleGame {
 async function main() {
   const game = new BattleRoyaleGame();
   await game.start();
-  
+
   console.log("Battle Royale started! WASD to move, mouse to aim, click to shoot.");
 }
 
