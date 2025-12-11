@@ -3,7 +3,9 @@ import { Encoder, Schema, type, MapSchema, StateView, view } from "@colyseus/sch
 import { Quadtree, Rectangle } from "@timohausmann/quadtree-ts";
 import RAPIER from "@dimforge/rapier2d-compat";
 
-Encoder.BUFFER_SIZE = 64 * 1024; // 64KB
+Encoder.BUFFER_SIZE = 64 * 1024 // 64KB
+  * 60; // 60 max players
+
 
 // Constants
 const MAP_SIZE = 2000;
@@ -110,6 +112,9 @@ export class BattleRoyaleRoom extends Room {
 
     // Start game loop at 60Hz
     this.setSimulationInterval((deltaTime) => this.update(deltaTime), 1000 / TICK_RATE);
+    
+    // Update visibility every second
+    this.clock.setInterval(() => this.updateVisibility(), 1000);
 
     console.log("BattleRoyaleRoom created");
   }
@@ -198,6 +203,22 @@ export class BattleRoyaleRoom extends Room {
     bullet.angle = angle;
     bullet.speed = BULLET_SPEED;
     this.state.bullets.set(bulletId, bullet);
+
+    // Add bullet to nearby clients' view
+    for (const [sessionId, player] of this.state.players) {
+      const dx = bullet.x - player.x;
+      const dy = bullet.y - player.y;
+      const distSq = dx * dx + dy * dy;
+      const viewDistSq = VIEW_DISTANCE * VIEW_DISTANCE;
+
+      if (distSq <= viewDistSq) {
+        const client = this.clients.find(c => c.sessionId === sessionId);
+        if (!client.view.has(bullet)) {
+          client.view.add(bullet);
+        }
+      }
+    }
+
   }
 
   private update(deltaTime: number) {
@@ -325,8 +346,6 @@ export class BattleRoyaleRoom extends Room {
       this.removeBullet(bulletId);
     }
 
-    // Update visibility for all clients
-    this.updateVisibility();
   }
 
   private updateVisibility() {
@@ -361,24 +380,6 @@ export class BattleRoyaleRoom extends Room {
         } else {
           if (client.view.has(otherPlayer)) {
             client.view.remove(otherPlayer);
-          }
-        }
-      }
-
-      // Add/remove bullets from view based on proximity to player
-      for (const [_, bullet] of this.state.bullets) {
-        const dx = bullet.x - player.x;
-        const dy = bullet.y - player.y;
-        const distSq = dx * dx + dy * dy;
-        const viewDistSq = VIEW_DISTANCE * VIEW_DISTANCE;
-
-        if (distSq <= viewDistSq) {
-          if (!client.view.has(bullet)) {
-            client.view.add(bullet);
-          }
-        } else {
-          if (client.view.has(bullet)) {
-            client.view.remove(bullet);
           }
         }
       }
