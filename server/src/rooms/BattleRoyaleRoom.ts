@@ -28,7 +28,6 @@ export const Player = schema({
 export type Player = SchemaType<typeof Player>;
 
 export const Bullet = schema({
-  id: "string",
   ownerId: "string",
   x: "number",
   y: "number",
@@ -170,7 +169,7 @@ export class BattleRoyaleRoom extends Room {
     const bulletX = player.x + Math.cos(angle) * spawnOffset;
     const bulletY = player.y + Math.sin(angle) * spawnOffset;
 
-    const bulletId = `bullet_${this.bulletIdCounter++}`;
+    const bulletId = `${this.bulletIdCounter++}`;
 
     // Create physics body
     const body = this.createBulletBody(bulletX, bulletY, angle);
@@ -179,7 +178,6 @@ export class BattleRoyaleRoom extends Room {
 
     // Create state
     const bullet = new Bullet();
-    bullet.id = bulletId;
     bullet.ownerId = sessionId;
     bullet.x = bulletX;
     bullet.y = bulletY;
@@ -323,9 +321,9 @@ export class BattleRoyaleRoom extends Room {
     }
     this.bulletStartPositions.delete(bulletId);
 
-    // remove bullet after 200ms (so frame can render the hit)
+    // remove bullet from state after 200ms (so client can render the hit)
     this.clock.setTimeout(() =>
-      this.removeBullet(bulletId), 200);
+      this.state.bullets.delete(bulletId), 200);
   }
 
   onJoin(client: Client, options: any) {
