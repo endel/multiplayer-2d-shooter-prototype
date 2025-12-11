@@ -1,5 +1,6 @@
 import { Room, Client } from "@colyseus/core";
-import { Encoder, schema, SchemaType } from "@colyseus/schema";
+import { Encoder, Schema, type, MapSchema, StateView, view } from "@colyseus/schema";
+import { Quadtree, Rectangle } from "@timohausmann/quadtree-ts";
 import RAPIER from "@dimforge/rapier2d-compat";
 
 Encoder.BUFFER_SIZE = 64 * 1024; // 64KB
@@ -14,33 +15,31 @@ const BULLET_DAMAGE = 20;
 const STARTING_HEALTH = 500;
 const TICK_RATE = 60;
 const BULLET_MAX_DISTANCE = 1000;
+const VIEW_DISTANCE = 600; // Visibility radius for StateView
 
 // Schema definitions
-export const Player = schema({
-  x: "number",
-  y: "number",
-  angle: "number",
-  health: "number",
-  velocityX: "number",
-  velocityY: "number",
-  lastProcessedSeq: "number",
-});
-export type Player = SchemaType<typeof Player>;
+export class Player extends Schema {
+  @type("number") x: number = 0;
+  @type("number") y: number = 0;
+  @type("number") angle: number = 0;
+  @type("number") health: number = 0;
+  @type("number") velocityX: number = 0;
+  @type("number") velocityY: number = 0;
+  @type("number") lastProcessedSeq: number = 0;
+}
 
-export const Bullet = schema({
-  ownerId: "string",
-  x: "number",
-  y: "number",
-  angle: "number",
-  speed: "number",
-});
-export type Bullet = SchemaType<typeof Bullet>;
+export class Bullet extends Schema {
+  @type("string") ownerId: string = "";
+  @type("number") x: number = 0;
+  @type("number") y: number = 0;
+  @type("number") angle: number = 0;
+  @type("number") speed: number = 0;
+}
 
-export const GameState = schema({
-  players: { map: Player },
-  bullets: { map: Bullet },
-});
-export type GameState = SchemaType<typeof GameState>;
+export class GameState extends Schema {
+  @view() @type({ map: Player }) players = new MapSchema<Player>();  // Only sync players in view
+  @view() @type({ map: Bullet }) bullets = new MapSchema<Bullet>();  // Only sync bullets in view
+}
 
 // Input message types
 interface InputMessage {
@@ -71,6 +70,11 @@ export class BattleRoyaleRoom extends Room {
   private pendingInputs: Map<string, InputMessage[]> = new Map();
   private shootCooldowns: Map<string, number> = new Map();
 
+  // Quadtree for spatial partitioning
+  private quadtree!: Quadtree<Rectangle<{ id: string }>>;
+  private playerRects: Map<string, Rectangle<{ id: string }>> = new Map();
+  private queryRect: Rectangle = new Rectangle({ x: 0, y: 0, width: VIEW_DISTANCE * 2, height: VIEW_DISTANCE * 2 });
+
   async onCreate(options: any) {
     // Initialize Rapier WASM
     await RAPIER.init();
@@ -78,6 +82,16 @@ export class BattleRoyaleRoom extends Room {
     // Initialize Rapier physics world (no gravity for top-down)
     const gravity = { x: 0, y: 0 };
     this.world = new RAPIER.World(gravity);
+    this.world.timestep = 1 / TICK_RATE;
+
+    // Initialize quadtree for spatial partitioning
+    this.quadtree = new Quadtree({
+      width: MAP_SIZE,
+      height: MAP_SIZE,
+      x: -MAP_SIZE / 2,
+      y: -MAP_SIZE / 2,
+      maxObjects: 2,
+    });
 
     // Create map boundaries (walls)
     this.createMapBoundaries();
@@ -310,6 +324,65 @@ export class BattleRoyaleRoom extends Room {
     for (const bulletId of bulletsToRemove) {
       this.removeBullet(bulletId);
     }
+
+    // Update visibility for all clients
+    this.updateVisibility();
+  }
+
+  private updateVisibility() {
+    // Update rectangle positions and rebuild quadtree
+    this.quadtree.clear();
+    for (const [id, player] of this.state.players) {
+      const rect = this.playerRects.get(id);
+      if (rect) {
+        rect.x = player.x - 1;
+        rect.y = player.y - 1;
+        this.quadtree.insert(rect);
+      }
+    }
+
+    // Update each client's view
+    for (const client of this.clients) {
+      const player = this.state.players.get(client.sessionId);
+      if (!player || !client.view) continue;
+
+      // Query nearby players using reusable queryRect
+      this.queryRect.x = player.x - VIEW_DISTANCE;
+      this.queryRect.y = player.y - VIEW_DISTANCE;
+      const nearby = this.quadtree.retrieve(this.queryRect);
+      const nearbyIds = new Set(nearby.map(r => r.data!.id));
+
+      // Add/remove players from view
+      for (const [id, otherPlayer] of this.state.players) {
+        if (nearbyIds.has(id)) {
+          if (!client.view.has(otherPlayer)) {
+            client.view.add(otherPlayer);
+          }
+        } else {
+          if (client.view.has(otherPlayer)) {
+            client.view.remove(otherPlayer);
+          }
+        }
+      }
+
+      // Add/remove bullets from view based on proximity to player
+      for (const [_, bullet] of this.state.bullets) {
+        const dx = bullet.x - player.x;
+        const dy = bullet.y - player.y;
+        const distSq = dx * dx + dy * dy;
+        const viewDistSq = VIEW_DISTANCE * VIEW_DISTANCE;
+
+        if (distSq <= viewDistSq) {
+          if (!client.view.has(bullet)) {
+            client.view.add(bullet);
+          }
+        } else {
+          if (client.view.has(bullet)) {
+            client.view.remove(bullet);
+          }
+        }
+      }
+    }
   }
 
   private removeBullet(bulletId: string) {
@@ -352,10 +425,34 @@ export class BattleRoyaleRoom extends Room {
 
     // Initialize input queue
     this.pendingInputs.set(client.sessionId, []);
+
+    // Create quadtree rectangle for this player (reused each frame)
+    const rect = new Rectangle({
+      x: x - 1,
+      y: y - 1,
+      width: 2,
+      height: 2,
+      data: { id: client.sessionId }
+    });
+    this.playerRects.set(client.sessionId, rect);
+
+    // Initialize StateView for this client
+    client.view = new StateView();
+    client.view.add(player); // Player always sees themselves
   }
 
   onLeave(client: Client, consented: boolean) {
     console.log(client.sessionId, "left BattleRoyaleRoom");
+
+    // // Remove player from all other clients' StateViews
+    // const leavingPlayer = this.state.players.get(client.sessionId);
+    // if (leavingPlayer) {
+    //   for (const otherClient of this.clients) {
+    //     if (otherClient.sessionId !== client.sessionId && otherClient.view) {
+    //       otherClient.view.remove(leavingPlayer);
+    //     }
+    //   }
+    // }
 
     // Remove physics body
     const body = this.playerBodies.get(client.sessionId);
@@ -363,6 +460,9 @@ export class BattleRoyaleRoom extends Room {
       this.world.removeRigidBody(body);
       this.playerBodies.delete(client.sessionId);
     }
+
+    // Clean up quadtree rectangle
+    this.playerRects.delete(client.sessionId);
 
     // Remove state
     this.state.players.delete(client.sessionId);
