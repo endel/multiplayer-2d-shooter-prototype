@@ -1,7 +1,7 @@
 import { Client, Room } from "colyseus.js";
 import { cli, Options } from "@colyseus/loadtest";
 
-const TICK_RATE = 60;
+const TICK_RATE = 30; // 30 fps for simulated gameplay
 const TICK_INTERVAL = 1000 / TICK_RATE;
 
 // Simulated input state
@@ -34,7 +34,7 @@ export async function main(options: Options) {
 
   // Shooting cooldown
   let lastShootTime = 0;
-  const shootCooldown = 200 + Math.random() * 300; // 200-500ms between shots
+  const shootCooldown = () => 200 + Math.random() * 300; // 200-500ms between shots
   const shootChance = 0.3; // 30% chance to shoot each cooldown period
 
   // Track stats
@@ -118,7 +118,7 @@ export async function main(options: Options) {
   // Simulate shooting behavior
   function tryShoot() {
     const now = Date.now();
-    if (isAlive && now - lastShootTime > shootCooldown) {
+    if (isAlive && now - lastShootTime > shootCooldown()) {
       if (Math.random() < shootChance) {
         room.send("shoot", { angle: currentAngle });
         lastShootTime = now;

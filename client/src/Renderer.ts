@@ -30,6 +30,7 @@ export class Renderer {
 
   // UI elements
   private healthText: Text | null = null;
+  private pingText: Text | null = null;
   private killFeedTexts: Text[] = [];
   private hitOverlay: Graphics | null = null;
 
@@ -114,6 +115,19 @@ export class Renderer {
     this.healthText.y = 20;
     this.uiContainer.addChild(this.healthText);
 
+    // Ping display in top right corner
+    const pingStyle = new TextStyle({
+      fontFamily: "Arial",
+      fontSize: 16,
+      fill: 0xffffff,
+      stroke: { color: 0x000000, width: 3 },
+    });
+    this.pingText = new Text({ text: "Ping: --", style: pingStyle });
+    this.pingText.anchor.set(1, 0); // Anchor to top-right
+    this.pingText.x = this.app.screen.width - 20;
+    this.pingText.y = 20;
+    this.uiContainer.addChild(this.pingText);
+
     // Red flash overlay for hit feedback (added last to sit on top)
     this.hitOverlay = new Graphics();
     this.redrawHitOverlay();
@@ -125,6 +139,10 @@ export class Renderer {
   private handleResize() {
     this.app.renderer.resize(window.innerWidth, window.innerHeight);
     this.redrawHitOverlay();
+    // Update ping text position on resize
+    if (this.pingText) {
+      this.pingText.x = this.app.screen.width - 20;
+    }
   }
 
   setLocalPlayer(_playerId: string) {
@@ -241,6 +259,12 @@ export class Renderer {
     }
   }
 
+  updatePing(ms: number) {
+    if (this.pingText) {
+      this.pingText.text = `Ping: ${Math.round(ms)}ms`;
+    }
+  }
+
   /**
    * Brief red flash when the local player is hit
    */
@@ -280,8 +304,9 @@ export class Renderer {
     });
 
     const text = new Text({ text: message, style });
-    text.x = this.app.screen.width - 250;
-    text.y = 20 + this.killFeedTexts.length * 25;
+    text.anchor.set(1, 0); // Anchor to top-right
+    text.x = this.app.screen.width - 20;
+    text.y = 48 + this.killFeedTexts.length * 25;
     text.alpha = 1;
 
     this.uiContainer.addChild(text);

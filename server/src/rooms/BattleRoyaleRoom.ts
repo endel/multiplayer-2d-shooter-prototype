@@ -6,7 +6,6 @@ import RAPIER from "@dimforge/rapier2d-compat";
 Encoder.BUFFER_SIZE = 64 * 1024 // 64KB
   * 60; // 60 max players
 
-
 // Constants
 const MAP_SIZE = 2000;
 const PLAYER_RADIUS = 25;
@@ -110,13 +109,16 @@ export class BattleRoyaleRoom extends Room {
       this.handleShoot(client.sessionId, message.angle);
     });
 
+    // Ping/pong for latency testing
+    this.onMessage("ping", (client, message: ShootMessage) => {
+      client.send("ping");
+    });
+
     // Start game loop at 60Hz
     this.setSimulationInterval((deltaTime) => this.update(deltaTime), 1000 / TICK_RATE);
     
     // Update visibility every second
     this.clock.setInterval(() => this.updateVisibility(), 1000);
-
-    console.log("BattleRoyaleRoom created");
   }
 
   private createMapBoundaries() {

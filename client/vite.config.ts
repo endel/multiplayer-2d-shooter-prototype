@@ -9,7 +9,9 @@ export default defineConfig({
     topLevelAwait()
   ],
   server: {
-    allowedHosts: ['width-lol-sit-ending.trycloudflare.com'],
+    allowedHosts: [
+      // 'width-lol-sit-ending.trycloudflare.com'
+    ],
   },
   build: {
     rollupOptions: {

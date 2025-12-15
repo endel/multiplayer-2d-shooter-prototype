@@ -6,7 +6,7 @@ import { InputHandler } from "./InputHandler";
 import { TICK_RATE, PLAYER_RADIUS, BULLET_RADIUS } from "./types";
 import type { InputState, KillMessage } from "./types";
 import { playGunshot, playHit } from "./audio";
-import type { GameState } from "../../../server/src/rooms/BattleRoyaleRoom";
+import type { GameState } from "../../server/src/rooms/BattleRoyaleRoom";
 
 class BattleRoyaleGame {
   private client: Client;
@@ -28,6 +28,9 @@ class BattleRoyaleGame {
   private bulletSpawnTimes: Map<string, number> = new Map();
   // Track bullets that already triggered a local hit reaction
   private acknowledgedBulletHits: Set<string> = new Set();
+
+  // Ping tracking
+  private pingSentAt: number = 0;
 
   constructor() {
     this.client = new Client("ws://localhost:2567");
@@ -68,6 +71,7 @@ class BattleRoyaleGame {
 
     } catch (error) {
       console.error("Failed to join room:", error);
+      this.showConnectionError(error);
       throw error;
     }
   }
@@ -116,7 +120,19 @@ class BattleRoyaleGame {
         this.renderer.showKillFeed(`${killerName} killed ${targetName}`);
       }
     });
+
+    const pingInterval = setInterval(() => {
+      this.pingSentAt = performance.now();
+      this.room?.send("ping");
+    }, 2000);
+    this.room.onLeave(() => clearInterval(pingInterval));
+    this.room.onMessage("ping", () => {
+      const rtt = performance.now() - this.pingSentAt;
+      this.renderer.updatePing(rtt);
+    });
+
   }
+
 
   private handleInput(input: InputState) {
     if (!this.room) return;
@@ -312,6 +328,35 @@ class BattleRoyaleGame {
 
     requestAnimationFrame(this.gameLoop);
   };
+
+  private showConnectionError(error: unknown) {
+    const loading = document.getElementById("loading");
+    if (!loading) return;
+
+    loading.classList.remove("hidden");
+    loading.classList.add("error");
+
+    const status = loading.querySelector(".status");
+    if (status) {
+      status.textContent = "Connection Failed";
+    }
+
+    const errorMessage = loading.querySelector(".error-message");
+    if (errorMessage) {
+      const message =  error instanceof Error ? error.message : String(error);
+      errorMessage.textContent = message;
+    }
+
+    // Add retry button
+    const existingBtn = loading.querySelector(".retry-btn");
+    if (!existingBtn) {
+      const retryBtn = document.createElement("button");
+      retryBtn.className = "retry-btn";
+      retryBtn.textContent = "Retry";
+      retryBtn.onclick = () => window.location.reload();
+      loading.appendChild(retryBtn);
+    }
+  }
 
   destroy() {
     this.inputHandler?.destroy();

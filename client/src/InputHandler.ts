@@ -16,6 +16,10 @@ export class InputHandler {
   private mouseDown = false;
   private seq = 0;
 
+  // Time-based send rate (ms between sends)
+  private lastSendTime = 0;
+  private readonly sendIntervalMs = 1000 / 30; // 30fps = ~33.3ms
+
   private canvas: HTMLCanvasElement;
 
   private onInput: InputCallback;
@@ -148,6 +152,7 @@ export class InputHandler {
 
   /**
    * Start sending inputs at fixed rate
+   * Uses time-based sending (30fps) regardless of tick rate
    */
   startInputLoop(tickRate: number = 60) {
     if (this.inputInterval) {
@@ -155,8 +160,14 @@ export class InputHandler {
     }
 
     this.inputInterval = window.setInterval(() => {
-      const input = this.getCurrentInput();
-      this.onInput(input);
+      const now = performance.now();
+
+      // Only send if enough time has passed (30fps = every ~33ms)
+      if (now - this.lastSendTime >= this.sendIntervalMs) {
+        const input = this.getCurrentInput();
+        this.onInput(input);
+        this.lastSendTime = now;
+      }
     }, 1000 / tickRate);
   }
 
