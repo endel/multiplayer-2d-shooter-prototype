@@ -2,7 +2,7 @@
 
 See [blog post](https://medium.com/@endel/vibe-coding-a-multiplayer-2d-shooter-how-far-can-it-scale-b77c1a88af24).
 
-https://github.com/endel/multiplayer-2d-shooter-prototype/raw/refs/heads/main/prototype.mp4
+https://github.com/user-attachments/assets/a25de1de-d60a-4514-aa4b-d9a918701d43
 
 ## Getting Started
 
