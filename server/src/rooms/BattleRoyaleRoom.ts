@@ -60,7 +60,7 @@ interface BodyUserData {
 }
 
 export class BattleRoyaleRoom extends Room {
-  maxClients = 100;
+  maxClients = 300;
   state = new GameState();
 
   private world!: RAPIER.World;
