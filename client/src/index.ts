@@ -36,7 +36,7 @@ class BattleRoyaleGame {
     if (window.location.hostname === "localhost") {
       this.client = new Client("ws://localhost:2567");
     } else {
-      this.client = new Client("https://cl-scl-244a43e6.colyseus.cloud");
+      this.client = new Client("https://fr-cdg-717c29fd.colyseus.cloud");
     }
 
     this.renderer = new Renderer();
