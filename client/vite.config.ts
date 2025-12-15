@@ -16,9 +16,7 @@ export default defineConfig({
   build: {
     rollupOptions: {
       input: {
-        main: resolve(__dirname, 'index.html'),
-        'battle-royale': resolve(__dirname, 'battle-royale.html'),
-        'rapier-demo': resolve(__dirname, 'rapier-demo.html'),
+        main: resolve(__dirname, 'index.html')
       },
     },
   },
