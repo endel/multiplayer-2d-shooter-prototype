@@ -33,8 +33,12 @@ class BattleRoyaleGame {
   private pingSentAt: number = 0;
 
   constructor() {
-    this.client = new Client("ws://localhost:2567");
-    // this.client = new Client("https://br-sao-bd4b19d7.colyseus.cloud");
+    if (window.location.hostname === "localhost") {
+      this.client = new Client("ws://localhost:2567");
+    } else {
+      this.client = new Client("https://cl-scl-244a43e6.colyseus.cloud");
+    }
+
     this.renderer = new Renderer();
     this.prediction = new ClientPrediction();
   }
