@@ -13,7 +13,7 @@ module.exports = {
     time: true,
     watch: false,
     // instances: os.cpus().length,
-    instances: 1,
+    instances: 2,
     exec_mode: 'fork',
     wait_ready: true,
     env_production: {
