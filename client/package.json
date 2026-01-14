@@ -18,7 +18,7 @@
   "dependencies": {
     "@dimforge/rapier2d": "^0.19.3",
     "@dimforge/rapier3d": "^0.19.3",
-    "@colyseus/sdk": "^0.17.12",
+    "@colyseus/sdk": "^0.17.14",
     "pixi.js": "^8.14.3",
     "three": "^0.181.2"
   }

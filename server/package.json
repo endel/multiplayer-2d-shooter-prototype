@@ -31,7 +31,7 @@
     "typescript": "^5.0.4"
   },
   "dependencies": {
-    "@colyseus/core": "^0.17.9",
+    "@colyseus/core": "^0.17.11",
     "@colyseus/monitor": "^0.17.6",
     "@colyseus/playground": "^0.17.6",
     "@colyseus/schema": "^4.0.4",
