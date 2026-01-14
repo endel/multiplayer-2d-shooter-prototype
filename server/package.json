@@ -35,7 +35,7 @@
     "@colyseus/monitor": "^0.17.6",
     "@colyseus/playground": "^0.17.6",
     "@colyseus/schema": "^4.0.4",
-    "@colyseus/tools": "^0.17.6",
+    "@colyseus/tools": "^0.17.7",
     "@colyseus/ws-transport": "^0.17.6",
     "@dimforge/rapier2d-compat": "^0.19.3",
     "@timohausmann/quadtree-ts": "^2.3.0",
