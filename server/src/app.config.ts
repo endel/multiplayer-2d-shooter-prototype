@@ -1,4 +1,5 @@
 import config from "@colyseus/tools";
+import { defineRoom } from "colyseus";
 import { monitor } from "@colyseus/monitor";
 import { playground } from "@colyseus/playground";
 import { WebSocketTransport } from "@colyseus/ws-transport";
@@ -6,23 +7,21 @@ import { WebSocketTransport } from "@colyseus/ws-transport";
 /**
  * Import your Room files
  */
-import { MyRoom } from "./rooms/MyRoom";
-import { PredictionRoom } from "./rooms/PredicitonRoom";
 import { BattleRoyaleRoom } from "./rooms/BattleRoyaleRoom";
 
 export default config({
+
+    /**
+     * Define your room handlers:
+     */
+    rooms: {
+        battle_royale: defineRoom(BattleRoyaleRoom),
+    },
 
     // WebRTC SDP messages can be 3-12KB
     initializeTransport: (options) => new WebSocketTransport({ ...options, maxPayload: 12 * 1024 }),
 
     initializeGameServer: (gameServer) => {
-        /**
-         * Define your room handlers:
-         */
-        gameServer.define('my_room', MyRoom).filterBy(["schemaVersion"]);
-        gameServer.define('prediction_room', PredictionRoom);
-        gameServer.define('battle_royale', BattleRoyaleRoom);
-
         // gameServer.simulateLatency(200);
     },
 

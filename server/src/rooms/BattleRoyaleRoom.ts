@@ -1,4 +1,4 @@
-import { Room, Client } from "@colyseus/core";
+import { Room, Client, Messages, CloseCode } from "@colyseus/core";
 import { Encoder, Schema, type, MapSchema, StateView, view } from "@colyseus/schema";
 import { Quadtree, Rectangle } from "@timohausmann/quadtree-ts";
 import RAPIER from "@dimforge/rapier2d-compat";
@@ -43,13 +43,13 @@ export class GameState extends Schema {
 }
 
 // Input message types
-interface InputMessage {
+export interface InputMessage {
   seq: number;
   keys: { w: boolean; a: boolean; s: boolean; d: boolean };
   angle: number;
 }
 
-interface ShootMessage {
+export interface ShootMessage {
   angle: number;
 }
 
@@ -76,6 +76,17 @@ export class BattleRoyaleRoom extends Room {
   private playerRects: Map<string, Rectangle<{ id: string }>> = new Map();
   private queryRect: Rectangle = new Rectangle({ x: 0, y: 0, width: VIEW_DISTANCE * 2, height: VIEW_DISTANCE * 2 });
 
+  messages = {
+    input: (client: Client, message: InputMessage) => {
+      const inputs = this.pendingInputs.get(client.sessionId) || [];
+      inputs.push(message);
+      this.pendingInputs.set(client.sessionId, inputs);
+    },
+    shoot: (client: Client, message: ShootMessage) => {
+      this.handleShoot(client.sessionId, message.angle);
+    }
+  };
+
   async onCreate(options: any) {
     // Initialize Rapier WASM
     await RAPIER.init();
@@ -96,23 +107,6 @@ export class BattleRoyaleRoom extends Room {
 
     // Create map boundaries (walls)
     this.createMapBoundaries();
-
-    // Handle player input
-    this.onMessage("input", (client, message: InputMessage) => {
-      const inputs = this.pendingInputs.get(client.sessionId) || [];
-      inputs.push(message);
-      this.pendingInputs.set(client.sessionId, inputs);
-    });
-
-    // Handle shooting
-    this.onMessage("shoot", (client, message: ShootMessage) => {
-      this.handleShoot(client.sessionId, message.angle);
-    });
-
-    // Ping/pong for latency testing
-    this.onMessage("ping", (client, message: ShootMessage) => {
-      client.send("ping");
-    });
 
     // Start game loop at 60Hz
     this.setSimulationInterval((deltaTime) => this.update(deltaTime), 1000 / TICK_RATE);
@@ -215,7 +209,9 @@ export class BattleRoyaleRoom extends Room {
 
       if (distSq <= viewDistSq) {
         const client = this.clients.find(c => c.sessionId === sessionId);
-        if (!client.view.has(bullet)) {
+
+        // client may be undefined if player is reconnecting
+        if (client && !client.view.has(bullet)) {
           client.view.add(bullet);
         }
       }
@@ -444,8 +440,15 @@ export class BattleRoyaleRoom extends Room {
     client.view.add(player); // Player always sees themselves
   }
 
-  onLeave(client: Client, consented: boolean) {
-    console.log(client.sessionId, "left BattleRoyaleRoom");
+  onDrop(client: Client<any>, code?: CloseCode): void | Promise<any> {
+    console.log("ON DROP", client.sessionId, { code });
+    if (code !== CloseCode.CONSENTED) {
+      const reconnection = this.allowReconnection(client, "manual");
+    }
+  }
+
+  onLeave(client: Client, code?: number) {
+    console.log("ON LEAVE", client.sessionId, { code });
 
     // // Remove player from all other clients' StateViews
     // const leavingPlayer = this.state.players.get(client.sessionId);

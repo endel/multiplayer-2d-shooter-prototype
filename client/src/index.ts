@@ -1,4 +1,5 @@
-import { Client, Room, getStateCallbacks } from "colyseus.js";
+import { Client, Room, getStateCallbacks } from "@colyseus/sdk";
+import "@colyseus/sdk/debug";
 import { Renderer } from "./Renderer";
 import type { PlayerRenderData, BulletRenderData } from "./Renderer";
 import { ClientPrediction, EntityInterpolator } from "./ClientPrediction";
@@ -6,11 +7,12 @@ import { InputHandler } from "./InputHandler";
 import { TICK_RATE, PLAYER_RADIUS, BULLET_RADIUS } from "./types";
 import type { InputState, KillMessage } from "./types";
 import { playGunshot, playHit } from "./audio";
-import type { GameState } from "../../server/src/rooms/BattleRoyaleRoom";
+import type { BattleRoyaleRoom } from "../../server/src/rooms/BattleRoyaleRoom";
+import type { default as serverConfig } from "../../server/src/app.config";
 
 class BattleRoyaleGame {
-  private client: Client;
-  private room: Room<GameState> | null = null;
+  private client: Client<typeof serverConfig>;
+  private room: Room<BattleRoyaleRoom> | null = null;
   private renderer: Renderer;
   private prediction: ClientPrediction;
   private inputHandler: InputHandler | null = null;
@@ -28,9 +30,6 @@ class BattleRoyaleGame {
   private bulletSpawnTimes: Map<string, number> = new Map();
   // Track bullets that already triggered a local hit reaction
   private acknowledgedBulletHits: Set<string> = new Set();
-
-  // Ping tracking
-  private pingSentAt: number = 0;
 
   constructor() {
     if (window.location.hostname === "localhost") {
@@ -125,15 +124,12 @@ class BattleRoyaleGame {
       }
     });
 
+    // Update ping UI every 2 seconds
     const pingInterval = setInterval(() => {
-      this.pingSentAt = performance.now();
-      this.room?.send("ping");
+      this.room?.ping((ms) => this.renderer.updatePing(ms));
     }, 2000);
+
     this.room.onLeave(() => clearInterval(pingInterval));
-    this.room.onMessage("ping", () => {
-      const rtt = performance.now() - this.pingSentAt;
-      this.renderer.updatePing(rtt);
-    });
 
   }
 
