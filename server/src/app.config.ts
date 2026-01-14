@@ -26,6 +26,11 @@ export default config({
     },
 
     initializeExpress: (app) => {
+        // app.get("/", (req, res) => {
+        //     console.log("EXPRESS DEFAULT ROUTE!");
+        //     res.send("Hello World");
+        // });
+
         /**
          * Bind your custom express routes here:
          * Read more: https://expressjs.com/en/starter/basic-routing.html
@@ -39,7 +44,7 @@ export default config({
          * (It is not recommended to expose this route in a production environment)
          */
         if (process.env.NODE_ENV !== "production") {
-            app.use("/", playground());
+            app.use("/playground", playground());
         }
 
         /**
