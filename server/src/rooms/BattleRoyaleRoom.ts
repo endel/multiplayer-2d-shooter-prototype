@@ -442,8 +442,10 @@ export class BattleRoyaleRoom extends Room {
 
   onDrop(client: Client<any>, code?: CloseCode): void | Promise<any> {
     console.log("ON DROP", client.sessionId, { code });
+
+    // allow to reconnect for 30 seconds.
     if (code !== CloseCode.CONSENTED) {
-      const reconnection = this.allowReconnection(client, "manual");
+      this.allowReconnection(client, 30);
     }
   }
 
