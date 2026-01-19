@@ -8,10 +8,10 @@ import { TICK_RATE, PLAYER_RADIUS, BULLET_RADIUS } from "./types";
 import type { InputState, KillMessage } from "./types";
 import { playGunshot, playHit } from "./audio";
 import type { BattleRoyaleRoom } from "../../server/src/rooms/BattleRoyaleRoom";
-import type { default as serverConfig } from "../../server/src/app.config";
+import type { server } from "../../server/src/app.config";
 
 class BattleRoyaleGame {
-  private client: Client<typeof serverConfig>;
+  private client: Client<typeof server>;
   private room: Room<BattleRoyaleRoom> | null = null;
   private renderer: Renderer;
   private prediction: ClientPrediction;
@@ -37,6 +37,11 @@ class BattleRoyaleGame {
     } else {
       this.client = new Client("https://fr-cdg-717c29fd.colyseus.cloud");
     }
+
+    // testing http route
+    this.client.http.get("/hello_world").then((response) => {
+      console.log("Router example response:", response);
+    });
 
     this.renderer = new Renderer();
     this.prediction = new ClientPrediction();
