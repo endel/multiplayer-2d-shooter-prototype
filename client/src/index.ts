@@ -1,5 +1,5 @@
-import { Client, Room, getStateCallbacks } from "@colyseus/sdk";
-import "@colyseus/sdk/debug";
+import "@colyseus/sdk/debug"; // Enable Colyseus SDK debug panels
+import { Client, Room, Callbacks } from "@colyseus/sdk";
 import { Renderer } from "./Renderer";
 import type { PlayerRenderData, BulletRenderData } from "./Renderer";
 import { ClientPrediction, EntityInterpolator } from "./ClientPrediction";
@@ -58,6 +58,14 @@ class BattleRoyaleGame {
 
       console.log("Joined room:", this.room.roomId, "as", this.localPlayerId);
 
+      this.room.onDrop((code, reason) => {
+        console.log("room.onDrop():", { code, reason });
+      });
+
+      this.room.onReconnect(() => {
+        console.log("room.onReconnect()");
+      });
+
       // Setup state callbacks
       this.setupStateCallbacks();
 
@@ -82,10 +90,10 @@ class BattleRoyaleGame {
   private setupStateCallbacks() {
     if (!this.room) return;
 
-    const $ = getStateCallbacks(this.room);
+    const callbacks = Callbacks.get(this.room);
 
-    // Player added
-    $(this.room.state).players.onAdd((_player: any, sessionId: string) => {
+    // on Player added
+    callbacks.onAdd("players", (_player, sessionId: string) => {
       console.log("Player joined:", sessionId);
 
       if (sessionId === this.localPlayerId) {
@@ -103,8 +111,8 @@ class BattleRoyaleGame {
       }
     });
 
-    // Player removed
-    $(this.room.state).players.onRemove((_player: any, sessionId: string) => {
+    // on Player removed
+    callbacks.onRemove("players", (_player, sessionId: string) => {
       console.log("Player left:", sessionId);
       this.otherPlayerInterpolators.delete(sessionId);
     });
@@ -124,15 +132,11 @@ class BattleRoyaleGame {
       }
     });
 
-    // Update ping UI every 2 seconds
-    const pingInterval = setInterval(() => {
-      this.room?.ping((ms) => this.renderer.updatePing(ms));
-    }, 2000);
-
-    this.room.onLeave(() => clearInterval(pingInterval));
+    this.room?.onLeave((code, reason) => {
+      console.log("room.onLeave:", { code, reason });
+    });
 
   }
-
 
   private handleInput(input: InputState) {
     if (!this.room) return;
