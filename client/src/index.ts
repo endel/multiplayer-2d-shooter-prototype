@@ -39,7 +39,7 @@ class BattleRoyaleGame {
     }
 
     // testing http route
-    this.client.http.get("/hello_world").then((response) => {
+    this.client.http.get("/api/hello_world").then((response) => {
       console.log("Router example response:", response);
     });
 

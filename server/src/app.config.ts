@@ -27,7 +27,7 @@ app.get("/hello_world", (req, res) => {
  * (It is not recommended to expose this route in a production environment)
  */
 if (process.env.NODE_ENV !== "production") {
-    app.use("/playground", playground());
+    app.use("/", playground());
 }
 
 /**
@@ -51,7 +51,7 @@ export const server = defineServer({
     }),
 
     routes: createRouter({
-        hello_world: createEndpoint("/hello_world", { method: "GET" }, async (ctx) => {
+        api_route: createEndpoint("/api/hello_world", { method: "GET" }, async (ctx) => {
             return ctx.json({ message: "Hello world!" });
         }),
     }),
