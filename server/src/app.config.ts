@@ -1,10 +1,14 @@
 import express from "express";
 import { createServer } from "http";
-import { createEndpoint, createRouter, defineRoom, defineServer } from "@colyseus/core";
-
-import { monitor } from "@colyseus/monitor";
-import { playground } from "@colyseus/playground";
-import { WebSocketTransport } from "@colyseus/ws-transport";
+import {
+    defineRoom,
+    defineServer,
+    monitor,
+    playground,
+    WebSocketTransport,
+    createEndpoint,
+    createRouter,
+} from "colyseus";
 
 /**
  * Import your Room files

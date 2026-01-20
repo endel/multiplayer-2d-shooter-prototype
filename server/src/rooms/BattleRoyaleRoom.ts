@@ -1,4 +1,4 @@
-import { Room, Client, Messages, CloseCode } from "@colyseus/core";
+import { Room, Client, CloseCode } from "colyseus";
 import { Encoder, Schema, type, MapSchema, StateView, view } from "@colyseus/schema";
 import { Quadtree, Rectangle } from "@timohausmann/quadtree-ts";
 import RAPIER from "@dimforge/rapier2d-compat";

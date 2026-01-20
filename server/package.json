@@ -31,15 +31,11 @@
     "typescript": "^5.0.4"
   },
   "dependencies": {
-    "@colyseus/core": "^0.17.16",
-    "@colyseus/monitor": "^0.17.6",
-    "@colyseus/playground": "^0.17.6",
+    "colyseus": "^0.17.6",
     "@colyseus/schema": "^4.0.4",
     "@colyseus/tools": "^0.17.10",
-    "@colyseus/ws-transport": "^0.17.6",
     "@dimforge/rapier2d-compat": "^0.19.3",
     "@timohausmann/quadtree-ts": "^2.3.0",
-    "colyseus": "^0.17.4",
     "express": "^4.18.2"
   }
 }
