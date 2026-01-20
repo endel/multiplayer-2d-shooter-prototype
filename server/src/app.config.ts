@@ -51,8 +51,7 @@ export const server = defineServer({
     }),
 
     routes: createRouter({
-        // hello_world: createEndpoint("/hello_world", { method: "GET" }, async (ctx) => {
-	    hello_world: createEndpoint("/hello_world", { method: "GET" }, async (ctx: any) => {
+        hello_world: createEndpoint("/hello_world", { method: "GET" }, async (ctx) => {
             return ctx.json({ message: "Hello world!" });
         }),
     }),

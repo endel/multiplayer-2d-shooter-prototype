@@ -31,8 +31,7 @@
     "typescript": "^5.0.4"
   },
   "dependencies": {
-    "@colyseus/core": "^0.17.11",
-    "@colyseus/better-call": "^1.0.27",
+    "@colyseus/core": "^0.17.16",
     "@colyseus/monitor": "^0.17.6",
     "@colyseus/playground": "^0.17.6",
     "@colyseus/schema": "^4.0.4",
