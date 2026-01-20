@@ -41,6 +41,6 @@
     "@dimforge/rapier2d-compat": "^0.19.3",
     "@timohausmann/quadtree-ts": "^2.3.0",
     "colyseus": "^0.17.4",
-    "express": "^4.18.2",,
+    "express": "^4.18.2",
   }
 }
