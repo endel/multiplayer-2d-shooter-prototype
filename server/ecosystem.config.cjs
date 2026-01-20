@@ -15,6 +15,7 @@ module.exports = {
     instances: os.cpus().length,
     exec_mode: 'fork',
     wait_ready: true,
+
   }],
 };
 
