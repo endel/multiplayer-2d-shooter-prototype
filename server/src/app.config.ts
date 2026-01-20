@@ -1,6 +1,6 @@
 import express from "express";
 import { createServer } from "http";
-import { createEndpoint, createRouter, defineRoom, defineServer } from "colyseus";
+import { createEndpoint, createRouter, defineRoom, defineServer } from "@colyseus/core";
 
 import { monitor } from "@colyseus/monitor";
 import { playground } from "@colyseus/playground";
@@ -51,8 +51,9 @@ export const server = defineServer({
     }),
 
     routes: createRouter({
-        hello_world: createEndpoint("/hello_world", { method: "GET" }, async (_: any) => {
-            return new Response("Hello world!");
+        // hello_world: createEndpoint("/hello_world", { method: "GET" }, async (ctx) => {
+	    hello_world: createEndpoint("/hello_world", { method: "GET" }, async (ctx: any) => {
+            return ctx.json({ message: "Hello world!" });
         }),
     }),
 
