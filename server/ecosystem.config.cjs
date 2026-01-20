@@ -15,7 +15,7 @@ module.exports = {
     instances: os.cpus().length,
     exec_mode: 'fork',
     wait_ready: true,
-    env_production: {
+    env_production:
       NODE_ENV: 'production'
     }
   }],
