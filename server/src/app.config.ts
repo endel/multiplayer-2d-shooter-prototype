@@ -15,32 +15,6 @@ import {
  */
 import { BattleRoyaleRoom } from "./rooms/BattleRoyaleRoom";
 
-const app = express();
-const httpServer = createServer(app);
-
-/**
- * Bind your custom express routes here:
- * Read more: https://expressjs.com/en/starter/basic-routing.html
- */
-app.get("/hello_world", (req, res) => {
-    res.send("It's time to kick ass and chew bubblegum!");
-});
-
-/**
- * Use @colyseus/playground
- * (It is not recommended to expose this route in a production environment)
- */
-if (process.env.NODE_ENV !== "production") {
-    app.use("/", playground());
-}
-
-/**
- * Use @colyseus/monitor
- * It is recommended to protect this route with a password
- * Read more: https://docs.colyseus.io/tools/monitor/#restrict-access-to-the-panel-using-a-password
- */
-app.use("/monitor", monitor());
-
 export const server = defineServer({
     /**
      * Define your room handlers:
@@ -49,15 +23,35 @@ export const server = defineServer({
         battle_royale: defineRoom(BattleRoyaleRoom),
     },
 
-    transport: new WebSocketTransport({
-        server: httpServer,
-        maxPayload: 12 * 1024, // WebRTC SDP messages can be 3-12KB
-    }),
-
     routes: createRouter({
         api_route: createEndpoint("/api/hello_world", { method: "GET" }, async (ctx) => {
             return ctx.json({ message: "Hello world!" });
         }),
     }),
+
+    express: (app) => {
+        /**
+         * Bind your custom express routes here:
+         * Read more: https://expressjs.com/en/starter/basic-routing.html
+         */
+        app.get("/hello_world", (req, res) => {
+            res.send("It's time to kick ass and chew bubblegum!");
+        });
+
+        /**
+         * Use @colyseus/playground
+         * (It is not recommended to expose this route in a production environment)
+         */
+        if (process.env.NODE_ENV !== "production") {
+            app.use("/", playground());
+        }
+
+        /**
+         * Use @colyseus/monitor
+         * It is recommended to protect this route with a password
+         * Read more: https://docs.colyseus.io/tools/monitor/#restrict-access-to-the-panel-using-a-password
+         */
+        app.use("/monitor", monitor());
+    }
 
 });
